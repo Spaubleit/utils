@@ -1,0 +1,30 @@
+
+{
+  "compilerOptions": {
+//    "baseUrl": "./resources/",
+    "target": "ES2017",
+    "module": "esnext",
+    "sourceMap": true,
+    "strict": true,
+    "jsx": "react",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "importsNotUsedAsValues": "preserve",
+    "lib": [
+      "WebWorker",
+      "ScriptHost",
+      "ESNext",
+      "DOM.Iterable",
+      "DOM",
+      "ES2015"
+    ]
+  },
+//  "include": [
+//    "./resources/**/*",
+//    "node_modules/@types/node/globals.d.ts"
+//  ],
+  "exclude": ["node_modules"]
+}

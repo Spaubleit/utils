@@ -1,0 +1,12 @@
+{
+  "name": "utils",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "Set of utilities and types that I use on my work",
+  "main": "src/index.ts",
+  "author": "spaubleit@protonmail.com",
+  "license": "MIT",
+  "dependencies": {
+    "typesafe-actions": "^5.1.0"
+  }
+}
