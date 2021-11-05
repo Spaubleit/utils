@@ -7,39 +7,39 @@ import type {
 } from "typesafe-actions"
 import { createAction } from "typesafe-actions"
 
-export type PrefixCreator <Prefix extends string, Creator extends ActionCreator> =
+export type PrefixCreator<Creator extends ActionCreator, Prefix extends string, Divider extends string = "/"> =
     Creator extends EmptyActionCreator<infer Type> ?
-        EmptyActionCreator<`${Prefix}/${Type}`>:
-            Creator extends PayloadActionCreator<infer Type, infer Payload>?
-                PayloadActionCreator<`${Prefix}/${Type}`, Payload>:
-                    Creator extends PayloadMetaActionCreator<infer Type, infer Payload, infer Meta>?
-                        PayloadMetaActionCreator<`${Prefix}/${Type}`, Payload, Meta>:
-                            never
+        EmptyActionCreator<`${Prefix}${Divider}${Type}`> :
+        Creator extends PayloadActionCreator<infer Type, infer Payload> ?
+            PayloadActionCreator<`${Prefix}${Divider}${Type}`, Payload> :
+            Creator extends PayloadMetaActionCreator<infer Type, infer Payload, infer Meta> ?
+                PayloadMetaActionCreator<`${Prefix}${Divider}${Type}`, Payload, Meta> :
+                never
 
-export type PrefixGroup <Prefix extends string, Actions extends Record<string, ActionCreator>> = {
-    [K in keyof Actions]: PrefixCreator<Prefix, Actions[K]>
+export type PrefixGroup<Actions extends Record<string, ActionCreator>, Prefix extends string, Divider extends string = "/"> = {
+    [K in keyof Actions]: PrefixCreator<Actions[K], Prefix, Divider>
 }
 
-export const prefixCreator = <Prefix extends string>(prefix: Prefix) => <Creator extends ActionCreator>(creator: Creator): PrefixCreator<Prefix, Creator> => {
-    const type = prefix + "/" + (creator as ActionCreatorTypeMetadata<string>).getType!();
+export const prefixCreator = <Prefix extends string, Divider extends string = "/">(prefix: Prefix, divider = "/" as Divider) =>
+    <Creator extends ActionCreator>(creator: Creator): PrefixCreator<Creator, Prefix, Divider> => {
+        const type = prefix + divider + (creator as ActionCreatorTypeMetadata<string>).getType!()
 
-    const wrapper =  ((...params: unknown[]) => ({
-        ...creator(...params),
-        type,
-    })) as unknown as PrefixCreator<Prefix, Creator>
-    (wrapper as ActionCreatorTypeMetadata<string>).getType = () => type
+        const wrapper = ((...params: unknown[]) => ({
+            ...creator(...params),
+            type,
+        })) as unknown as PrefixCreator<Creator, Prefix, Divider>
+        (wrapper as ActionCreatorTypeMetadata<string>).getType = () => type
 
-    return wrapper
-}
+        return wrapper
+    }
 
 export const createGroup = <Creators extends Record<string, ActionCreator>>(actions: Creators) =>
-    <Prefix extends string>(prefix: Prefix): PrefixGroup<Prefix, Creators> =>
-    {
-        const addPrefix = prefixCreator(prefix)
+    <Prefix extends string, Divider extends string = "/">(prefix: Prefix, divider = "/" as Divider): PrefixGroup<Creators, Prefix, Divider> => {
+        const addPrefix = prefixCreator(prefix, divider)
         return Object.fromEntries(Object
             .entries(actions)
             .map(([key, creator]) => [key, addPrefix(creator)])
-        ) as PrefixGroup<Prefix, Creators>
+        ) as PrefixGroup<Creators, Prefix, Divider>
     }
 
 export const createAsyncAction = <Prefix extends string>(prefix: Prefix) =>
@@ -48,8 +48,8 @@ export const createAsyncAction = <Prefix extends string>(prefix: Prefix) =>
             request: createAction("REQUEST")<R>(),
             success: createAction("SUCCESS")<S>(),
             failure: createAction("REQUEST")<F>(),
-        })(prefix) as unknown as PrefixGroup<Prefix, {
+        })(prefix, "_") as unknown as PrefixGroup<{
             request: ActionCreatorBuilder<"REQUEST", R>,
             success: ActionCreatorBuilder<"SUCCESS", S>,
             failure: ActionCreatorBuilder<"FAILURE", F>,
-        }>
+        }, Prefix, "_">
