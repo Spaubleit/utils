@@ -7,6 +7,7 @@
   "author": "spaubleit@protonmail.com",
   "license": "MIT",
   "dependencies": {
+    "query-string": "^7.0.1",
     "typesafe-actions": "^5.1.0"
   }
 }
