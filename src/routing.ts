@@ -72,13 +72,12 @@ export const dive = <T extends Route>(route: T): RouteToSegment<T> => {
     ) as RouteToSegment<T>
 }
 
-export const route = <T extends Record<string, Route> = {}>(children?: T) =>
-    <Query extends Record<string, string | number> | undefined = undefined>(): StaticRoute<T, Query> => ({
+export const route = <Query extends Record<string, string | number> | undefined = undefined>() =>
+    <T extends Record<string, Route> = {}>(children?: T): StaticRoute<T, Query> => ({
     children: children ?? {}
-}) as unknown as StaticRoute<T>
+}) as unknown as StaticRoute<T, Query>
 
-export const dynamicRoute = <T extends Record<string, Route>>(children?: T) =>
-    <Param extends string | number, Query extends Record<string, string | number> | undefined = undefined>(): DynamicRoute<T, Param, Query> => ({
+export const dynamicRoute = <Param extends string | number, Query extends Record<string, string | number> | undefined = undefined>() => <T extends Record<string, Route>>(children?: T): DynamicRoute<T, Param, Query> => ({
     children: children ?? {}
 }) as unknown as DynamicRoute<T, Param>
 
