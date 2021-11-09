@@ -52,14 +52,16 @@ export const createGroup = <Creators extends Record<string, ActionCreator | Crea
         ) as PrefixGroup<Prefix, Creators>
     }
 
+export type AsyncAction<Prefix extends string, R, S, F> = PrefixGroup< `${Prefix}_`, {
+    request: ActionCreatorBuilder<"REQUEST", R>,
+    success: ActionCreatorBuilder<"SUCCESS", S>,
+    failure: ActionCreatorBuilder<"FAILURE", F>,
+}>
+
 export const createAsyncAction = <Prefix extends string>(prefix: Prefix) =>
     <R = undefined, S = undefined, F = undefined>() =>
         createGroup({
             request: createAction("REQUEST")<R>(),
             success: createAction("SUCCESS")<S>(),
-            failure: createAction("REQUEST")<F>(),
-        })(prefix + "_") as unknown as PrefixGroup< `${Prefix}_`, {
-            request: ActionCreatorBuilder<"REQUEST", R>,
-            success: ActionCreatorBuilder<"SUCCESS", S>,
-            failure: ActionCreatorBuilder<"FAILURE", F>,
-        }>
+            failure: createAction("FAILURE")<F>(),
+        })(prefix + "_") as AsyncAction<Prefix, R, S, F>
