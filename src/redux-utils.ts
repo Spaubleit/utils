@@ -1,8 +1,10 @@
-interface Action<T extends string> {
+export type Action<T extends string, A = unknown> = {
     type: T,
-}
+} & A
 
-interface WithPayload<P> {
+export type AnyAction = Action<string>
+
+export interface WithPayload<P> {
     payload: P,
 }
 
@@ -15,29 +17,31 @@ interface WithPayloadMeta<P, M> {
     meta: M,
 }
 
-interface ActionCreator<T extends string = string, P extends Array<unknown> = [], R = unknown> {
-    (...params: P): Action<T> & R,
+export interface ActionCreator<T extends string = string, P extends Array<unknown> = [], R = unknown> {
+    (...params: P): Action<T, R>,
     type: T,
 }
 
-const payload = <P>() => (payload: P): WithPayload<P> => ({
+export type AnyCreator = ActionCreator<string, any, any>
+
+export const payload = <P>() => (payload: P): WithPayload<P> => ({
     payload,
 })
 
-const meta = <M>() => (meta: M): WithMeta<M> => ({
+export const meta = <M>() => (meta: M): WithMeta<M> => ({
     meta,
 })
 
-const payloadMeta = <P, M>() => (...[payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
+export const payloadMeta = <P, M>() => (...[payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
     payload,
     meta,
 })
 
-const actionCreator = <T extends string, R, P extends Array<unknown> = []>(type: T, builder?: (...params: P) => R): ActionCreator<T, P, R> => {
-    const creator = (...params: P): Action<T> & R => ({
+export const actionCreator = <T extends string, R, P extends Array<unknown> = []>(type: T, builder?: (...params: P) => R): ActionCreator<T, P, R> => {
+    const creator = (...params: P): Action<T, R> => ({
         type,
         ...builder?.(...params)
-    }) as Action<T> & R
+    }) as Action<T, R>
     creator.type = type
 
     return creator
@@ -56,7 +60,7 @@ const prefixCreator = <Prefix extends string, T extends string, P extends Array<
         return wrapper as ActionCreator<`${Prefix}${T}`, P, R>
     }
 
-const prefixGroup = <Prefix extends string, Group extends CreatorGroup>(prefix: Prefix, group: Group): PrefixGroup<Prefix, Group> => {
+const prefixGroup = <Group extends CreatorGroup>(group: Group) => <Prefix extends string>(prefix: Prefix): PrefixGroup<Prefix, Group> => {
     return Object.fromEntries(Object.entries(group).map(([key, creator]) => [key, prefixCreator(prefix, creator)])) as PrefixGroup<Prefix, Group>
 }
 
@@ -73,16 +77,65 @@ export type PrefixCreator<Prefix extends string, Creator extends ActionCreator |
                         PrefixGroup<`${Prefix}${T}`, Creators>:
                         never
 
-// const createReducer = <T>(initial: T) => {}
+export type Reducer<S, A> = (state: S, action: A) => S
 
-const actions = prefixGroup("root_", {
+export declare type Handler<TState, TAction> = (prevState: TState, action: TAction) => TState
+
+export type HandlerMap<TState, TAction extends AnyAction> = Record<TAction["type"], Handler<TState, TAction>>
+
+export type InferActionFromMap<Map extends HandlerMap<any, any>> = Map extends HandlerMap<any, infer T> ? T : never;
+
+type InferActionFromCreator<TActionCreator> = TActionCreator extends ActionCreator<infer T, any, infer A> ? Action<T, A> : never;
+
+type CreateHandlerMap<TState> = <
+    TCreator extends AnyCreator,
+    TAction extends AnyAction = InferActionFromCreator<TCreator>
+    >(
+    actionCreators: TCreator | TCreator[],
+    handler: Handler<TState, TAction>
+) => HandlerMap<TState, TAction>;
+
+export const merge = <T>(...objs: T[]): any => Object.assign({}, ...objs)
+
+export function createHandlerMap<
+    TCreator extends ActionCreator<string, any, any>,
+    TState,
+    TAction extends AnyAction = InferActionFromCreator<TCreator>
+    >(
+    actionCreators: TCreator | TCreator[],
+    handler: Handler<TState, TAction>,
+): HandlerMap<TState, TAction> {
+    return (Array.isArray(actionCreators) ? actionCreators : [actionCreators])
+        .map(creator => creator.type)
+        .reduce<HandlerMap<TState, TAction>>((acc, type) => {
+            (acc as any)[type] = handler
+            return acc
+        }, {} as any)
+}
+
+export function createReducer<State, THandlerMap extends HandlerMap<State, any>>(
+    defaultState: State,
+    handlerMapsCreator: (handle: CreateHandlerMap<State>) => THandlerMap[],
+): Reducer<State, InferActionFromMap<THandlerMap>> {
+    const handlerMap: HandlerMap<State, any> = merge(...handlerMapsCreator(createHandlerMap))
+
+    return (state = defaultState, action): State => {
+        const handler = handlerMap[action.type]
+
+        return handler ? handler(state, action) : state
+    }
+}
+
+const actions = prefixGroup( {
     emptyAction: actionCreator("empty"),
     payloadAction: actionCreator("payload", payload<string>()),
     metaAction: actionCreator("meta", meta<number>()),
     payloadMetaAction: actionCreator("payload-meta", payloadMeta<string, number>()),
-    x: prefixGroup("group_", {
+    nested: prefixGroup({
         creator: actionCreator("xxx", payload<number>())
-    })
-})
+    })("group_")
+})("root_")
 
-console.log(actions)
+const reducer = createReducer("", handler => [
+    handler([actions.payloadAction, actions.payloadMetaAction], (state, action) => action.payload)
+])
