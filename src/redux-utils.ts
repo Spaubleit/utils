@@ -24,15 +24,17 @@ export interface ActionCreator<T extends string = string, P extends Array<unknow
 
 export type AnyCreator = ActionCreator<string, any, any>
 
-export const payload = <P>() => (payload: P): WithPayload<P> => ({
+export type ActionBuilder<P extends Array<unknown> = [], R = {}> = (...params: P[]) => R
+
+export const payload = <P>(): ActionBuilder<[P], WithPayload<P>> => ([payload]: [P]) => ({
     payload,
 })
 
-export const meta = <M>() => (meta: M): WithMeta<M> => ({
+export const meta = <M>(): ActionBuilder<[M], WithMeta<M>> => ([meta]: [M]): WithMeta<M> => ({
     meta,
 })
 
-export const payloadMeta = <P, M>() => (...[payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
+export const payloadMeta = <P, M>(): ActionBuilder<[P, M], WithPayloadMeta<P, M>> => ([payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
     payload,
     meta,
 })
@@ -125,6 +127,35 @@ export function createReducer<State, THandlerMap extends HandlerMap<State, any>>
         return handler ? handler(state, action) : state
     }
 }
+
+type CombinedConfig<Types extends Record<string, string>, Builders extends Partial<Record<keyof Types, ActionBuilder<any, any>>>> = {
+    [K in keyof Types]: Builders[K] extends ActionBuilder<infer Params, infer Result>?
+        ActionCreator<Types[K], Params, Result>:
+        ActionCreator<Types[K]>
+}
+
+export const combineCreators = <Types extends Record<string, string>>(types: Types) =>
+    <Prefix extends string, Builders extends Partial<Record<keyof Types, ActionBuilder<any, any>>>>(prefix: Prefix, builders: Builders): PrefixGroup<Prefix, CombinedConfig<Types, Builders>> => {
+    const actionGroup = Object.fromEntries(Object.entries(types).map(([key, type]) => [key, actionCreator(type, builders[key])]))
+    return prefixGroup(actionGroup)(prefix) as PrefixGroup<Prefix, CombinedConfig<Types, Builders>>
+}
+
+const typeString = <T extends string>(type: T): T => type
+
+const asyncCreator = combineCreators({
+    request: typeString("_REQUEST"),
+    success: typeString("_SUCCESS"),
+    failure: typeString("_FAILURE"),
+})
+
+const asyncActions = asyncCreator("data", {
+    request: payload<string>(),
+    success: payloadMeta<string, number>(),
+    failure: meta<number>(),
+})
+
+
+const iAmAsyncAction = asyncActions.success("string", 5)
 
 const actions = prefixGroup( {
     emptyAction: actionCreator("empty"),
