@@ -1,3 +1,6 @@
+import { pipe } from "fp-ts/function"
+import { string } from "fp-ts"
+
 export type Action<T extends string, A = unknown> = {
     type: T,
 } & A
@@ -24,17 +27,17 @@ export interface ActionCreator<T extends string = string, P extends Array<unknow
 
 export type AnyCreator = ActionCreator<string, any, any>
 
-export type ActionBuilder<P extends Array<unknown> = [], R = {}> = (...params: P[]) => R
+export type ActionBuilder<P extends Array<unknown> = [], R = {}> = (...params: [...P]) => R
 
-export const payload = <P>(): ActionBuilder<[P], WithPayload<P>> => ([payload]: [P]) => ({
+export const payload = <P>(): ActionBuilder<[P], WithPayload<P>> => (...[payload]: [P]) => ({
     payload,
 })
 
-export const meta = <M>(): ActionBuilder<[M], WithMeta<M>> => ([meta]: [M]): WithMeta<M> => ({
+export const meta = <M>(): ActionBuilder<[M], WithMeta<M>> => (...[meta]: [M]): WithMeta<M> => ({
     meta,
 })
 
-export const payloadMeta = <P, M>(): ActionBuilder<[P, M], WithPayloadMeta<P, M>> => ([payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
+export const payloadMeta = <P, M>(): ActionBuilder<[P, M], WithPayloadMeta<P, M>> => (...[payload, meta]: [payload: P, meta: M]): WithPayloadMeta<P, M> => ({
     payload,
     meta,
 })
@@ -154,6 +157,11 @@ const asyncActions = asyncCreator("data", {
     failure: meta<number>(),
 })
 
+const abstractReducer = (actions: any): any => {}
+
+const dataReducer = abstractReducer({
+
+})
 
 const iAmAsyncAction = asyncActions.success("string", 5)
 
