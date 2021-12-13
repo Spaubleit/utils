@@ -1,5 +1,6 @@
 import { pipe } from "fp-ts/function"
 import { string } from "fp-ts"
+import { combineReducers } from "redux"
 
 export type Action<T extends string, A = unknown> = {
     type: T,
@@ -28,6 +29,8 @@ export interface ActionCreator<T extends string = string, P extends Array<unknow
 export type AnyCreator = ActionCreator<string, any, any>
 
 export type ActionBuilder<P extends Array<unknown> = [], R = {}> = (...params: [...P]) => R
+
+export const empty = (): ActionBuilder => () => ({})
 
 export const payload = <P>(): ActionBuilder<[P], WithPayload<P>> => (...[payload]: [P]) => ({
     payload,
@@ -149,21 +152,64 @@ const asyncCreator = combineCreators({
     request: typeString("_REQUEST"),
     success: typeString("_SUCCESS"),
     failure: typeString("_FAILURE"),
+    clear: typeString("_CLEAR"),
 })
 
-const asyncActions = asyncCreator("data", {
-    request: payload<string>(),
-    success: payloadMeta<string, number>(),
-    failure: meta<number>(),
+type BuildersToCreators<Builders extends Record<string, ActionBuilder<any, any>>> = {
+    [Key in keyof Builders]: Builders[Key] extends ActionBuilder<infer Params, infer Addition>?
+        ActionCreator<string, Params, Addition>:
+        never
+}
+
+type BuildersTest = {
+    request: ActionBuilder<[], never>,
+    success: ActionBuilder<[unknown], WithPayload<unknown>>,
+    failure: ActionBuilder<[string], WithPayload<string>>,
+}
+
+type Test = BuildersToCreators<BuildersTest>
+
+const abstractReducer = <Builders extends Record<string, ActionBuilder<any, unknown>>, R>(
+    shape: () => Builders,
+    func: (actions: BuildersToCreators<Builders>) => R
+) => (creators: BuildersToCreators<Builders>): R extends Reducer<any, any>? R: never => {}
+
+const dataReducer = abstractReducer(() => ({
+    request: empty(),
+    success: payload(),
+    failure: payload<string>(),
+    clear: empty(),
+}), actions => combineReducers({
+    // somehow extract type from action
+    data: createReducer(null, handle => [
+        handle(actions.success, (state, action: any) => action.payload),
+        handle(actions.clear, () => null)
+    ]),
+    loading: createReducer(false, handle => [
+        handle(actions.request, () => true),
+        handle([actions.success, actions.failure, actions.clear], () => false)
+    ]),
+    error: createReducer("", handle => [
+        handle(actions.failure, (state, action: any) => action.payload),
+        handle([actions.clear, actions.success, actions.request], () => "")
+    ])
+}))
+
+const projectActions = asyncCreator("project", {
+    request: empty(),
+    success: payload<string>(),
+    failure: payload<string>(),
 })
 
-const abstractReducer = (actions: any): any => {}
+const projectsReducer = dataReducer<string>(projectActions)
 
-const dataReducer = abstractReducer({
-
+const taskActions = asyncCreator("task", {
+    request: empty(),
+    success: payload<number>(),
+    failure: payload<string>()
 })
 
-const iAmAsyncAction = asyncActions.success("string", 5)
+const taskReducer = dataReducer(taskActions)
 
 const actions = prefixGroup( {
     emptyAction: actionCreator("empty"),
