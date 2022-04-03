@@ -7,6 +7,7 @@ type OptionalParam<T> = [...T extends undefined? []: [T]]
 export interface Modal<Props, InitProps> {
     useIt: (...props: OptionalParam<Props>) => void,
     show: (...props: OptionalParam<InitProps>) => () => void,
+    showImmediately: (...props: [...OptionalParam<Props>, ...OptionalParam<InitProps>]) => () => void,
 }
 
 export const buildModal = <Props extends unknown = undefined, InitialProps = undefined>(builder: (...props: [...OptionalParam<Props>, ...OptionalParam<InitialProps>, (() => void)]) => JSX.Element): Modal<Props, InitialProps> => {
@@ -20,19 +21,22 @@ export const buildModal = <Props extends unknown = undefined, InitialProps = und
         }, [_props])
     }
 
-    const show: Modal<Props, InitialProps>["show"] = (...initialProps) => {
+    const showImmediately: Modal<Props, InitialProps>["showImmediately"] = (...props) => {
         let result: () => void = noop
-        if (props) {
-            showModal(close => {
-                result = close
-                return builder(...props as OptionalParam<Props>, ...initialProps, close)
-            })
-        }
+        showModal(close => {
+            result = close
+            return builder(...props, close)
+        })
         return result
+    }
+
+    const show: Modal<Props, InitialProps>["show"] = (...initialProps) => {
+        return props? showImmediately(...props, ...initialProps): noop
     }
 
     return {
         useIt,
         show,
+        showImmediately,
     }
 }
