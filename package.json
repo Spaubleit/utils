@@ -9,7 +9,17 @@
   "dependencies": {
     "@react-nano/tsrux": "^0.11.0",
     "deox": "^3.3.1",
+    "fp-ts": "^2.11.5",
+    "observable-hooks": "^4.2.0",
     "query-string": "^7.0.1",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "redux": "^4.1.2",
+    "rxjs": "^7.5.5",
     "typesafe-actions": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.37",
+    "typescript": "^4.6.3"
   }
 }
